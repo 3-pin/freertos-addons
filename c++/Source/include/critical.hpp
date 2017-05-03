@@ -117,9 +117,9 @@ class CriticalSection {
         /**
          *  Re-enable context switches from an interrupt context.
          */
-        static inline void ExitFromISR();
+        static inline void ExitFromISR(uint32_t uxSavedInterruptStatus)
         {
-            taskEXIT_CRITICAL_FROM_ISR();
+            taskEXIT_CRITICAL_FROM_ISR(uxSavedInterruptStatus);
         }
 
         /**
