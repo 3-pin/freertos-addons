@@ -240,6 +240,13 @@ class Queue {
         bool IsEmpty();
 
         /**
+         *  Is the queue empty? in ISR context
+         *  @return true if the queue was empty when this was called, false if
+         *  the queue was not empty.
+         */
+        bool IsEmptyFromISR();
+
+        /**
          *  Is the queue full?
          *  @return true if the queue was full when this was called, false if
          *  the queue was not full.

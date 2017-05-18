@@ -169,6 +169,12 @@ bool Queue::IsEmpty()
     return cnt == 0 ? true : false;
 }
 
+bool Queue::IsEmptyFromISR()
+{
+    UBaseType_t cnt = uxQueueMessagesWaitingFromISR(handle);
+
+    return cnt == 0 ? true : false;
+}
 
 bool Queue::IsFull()
 {
