@@ -403,6 +403,14 @@ class Thread {
     //
     /////////////////////////////////////////////////////////////////////////
     private:
+
+#if ( configUSE_TRACE_FACILITY == 1 )
+        static struct TraceInitializer{
+            TraceInitializer() {
+            	 vTraceEnable(TRC_START);  // этот дефан определяем в FreeRTOSConfig.h как vTraceEnable(TRC_START)
+            }
+        } traceInitializer;
+#endif
         /**
          *  Reference to the underlying task handle for this thread.
          *  Can be obtained from GetHandle().
