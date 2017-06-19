@@ -109,7 +109,7 @@ class CriticalSection {
          *  Disable context switches as well as maskable interrupts
          *  from an interrupt context.
          */
-        static inline void EnterFromISR()
+        static inline BaseType_t EnterFromISR()
         {
             taskENTER_CRITICAL_FROM_ISR();
         }
