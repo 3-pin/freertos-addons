@@ -200,6 +200,11 @@ UBaseType_t Queue::NumItems()
     return uxQueueMessagesWaiting(handle);
 }
 
+UBaseType_t Queue::NumItemsFromISR()
+{
+    return uxQueueMessagesWaitingFromISR(handle);
+}
+
 
 UBaseType_t Queue::NumSpacesLeft()
 {

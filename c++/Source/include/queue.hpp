@@ -266,6 +266,8 @@ class Queue {
          */
         UBaseType_t NumItems();
 
+        UBaseType_t NumItemsFromISR();
+
         /**
          *  How many empty spaves are currently left in the queue.
          *  @return the number of remaining spaces.
