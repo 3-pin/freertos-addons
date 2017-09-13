@@ -253,6 +253,8 @@ class Queue {
          */
         bool IsFull();
 
+        bool isFullFromISR();
+
         /**
          *  Remove all objects from the queue.
          */

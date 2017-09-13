@@ -182,6 +182,11 @@ bool Queue::IsFull()
 
     return cnt == 0 ? true : false;
 }
+bool Queue::isFullFromISR()
+{
+	UBaseType_t cnt = xQueueIsQueueFullFromISR(handle);
+	return cnt == 0 ? true : false;
+}
 
 
 void Queue::Flush()
