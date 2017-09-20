@@ -72,7 +72,7 @@
 
 using namespace cpp_freertos;
 
-#if ( configUSE_TRACE_FACILITY == 1 )
+#if ( configUSE_TRACE_RECORDER == 1 )
 Thread::TraceInitializer Thread::traceInitializer;
 #endif
 

@@ -409,10 +409,10 @@ class Thread {
     /////////////////////////////////////////////////////////////////////////
     private:
 
-#if ( configUSE_TRACE_FACILITY == 1 )
+#if ( configUSE_TRACE_RECORDER == 1 )
         static struct TraceInitializer{
             TraceInitializer() {
-            	 vTraceEnable(TRC_START);  // этот дефан определяем в FreeRTOSConfig.h как vTraceEnable(TRC_START)
+            	 vTraceEnable(TRC_START);  // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ FreeRTOSConfig.h пїЅпїЅпїЅ vTraceEnable(TRC_START)
             }
         } traceInitializer;
 #endif
