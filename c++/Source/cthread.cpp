@@ -203,6 +203,8 @@ bool Thread::Start()
 }
 
 
+#if (INCLUDE_vTaskDelete == 1)
+
 //
 //  Deliberately empty. If this is needed, it will be overloaded.
 //
@@ -211,12 +213,18 @@ void Thread::Cleanup()
 }
 
 
-#if (INCLUDE_vTaskDelete == 1)
-
 Thread::~Thread()
 {
     vTaskDelete(handle);
     handle = (TaskHandle_t)-1;
+}
+
+#else
+
+Thread::~Thread()
+{
+    configASSERT( ! "Cannot actually delete a thread object "
+                    "if INCLUDE_vTaskDelete is not defined.");
 }
 
 #endif
@@ -228,9 +236,9 @@ void Thread::TaskFunctionAdapter(void *pvParameters)
 
     thread->Run();
 
-    thread->Cleanup();
-
 #if (INCLUDE_vTaskDelete == 1)
+
+    thread->Cleanup();
 
     vTaskDelete(thread->handle);
 

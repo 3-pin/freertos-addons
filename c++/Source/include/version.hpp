@@ -73,10 +73,10 @@
 namespace cpp_freertos {
 
 #define CPP_WRAPPERS_VERSION_MAJOR      1
-#define CPP_WRAPPERS_VERSION_MINOR      3
+#define CPP_WRAPPERS_VERSION_MINOR      5
 #define CPP_WRAPPERS_VERSION_RELEASE    0
 
-#define CPP_WRAPPERS_VERSION_STRING "1.3.0"
+#define CPP_WRAPPERS_VERSION_STRING "1.5.0"
 
 }
 #endif
