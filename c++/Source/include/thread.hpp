@@ -190,8 +190,8 @@ class Thread {
          */
         static inline void StartScheduler()
         {
+        	SchedulerActive = true;
             vTaskStartScheduler();
-            SchedulerActive = true;
         }
 
         static inline bool IsSchedulerActive()
