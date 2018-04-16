@@ -86,7 +86,7 @@
 #endif
 #endif
 #include "FreeRTOS.h"
-#include "timers.h"
+#include "freertos/freertos/timers.h"
 
 
 namespace cpp_freertos {
