@@ -119,7 +119,7 @@ class Ticks {
          *  @param milliseconds milliseconds to convert.
          *  @return ticks
          */
-        static inline TickType_t MsToTicks(TickType_t milliseconds)
+        static constexpr TickType_t MsToTicks(TickType_t milliseconds)
         {
             return milliseconds / portTICK_PERIOD_MS;
         }
