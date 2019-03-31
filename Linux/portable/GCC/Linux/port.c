@@ -104,6 +104,7 @@ typedef struct ThreadState_t_
     portBASE_TYPE   uxCriticalNesting;
     pdTASK_CODE     pxCode;
     void            *pvParams;
+    int             index;
 
 } ThreadState_t;
 
@@ -117,6 +118,8 @@ static pthread_mutex_t xSuspendResumeThreadMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t xSingleThreadMutex = PTHREAD_MUTEX_INITIALIZER;
 
 static pthread_t hMainThread;
+static pthread_t hEndSchedulerCallerThread;
+int hEndSchedulerCallerThreadIndex;
 
 static volatile portBASE_TYPE xSentinel = 0;
 static volatile portBASE_TYPE xSchedulerEnd = pdFALSE;
@@ -133,6 +136,10 @@ static volatile portBASE_TYPE uxCriticalNesting;
 static void DeleteThreadCleanupRoutine( void *Parameter )
 {
     ThreadState_t *State = (ThreadState_t *)Parameter;
+
+#if LINUX_PORT_DEBUG
+    printf("[%d] DeleteThreadCleanupRoutine for index\n", State->index);
+#endif
 
     State->Valid = 0;
     State->hTask = (xTaskHandle)NULL;
@@ -364,9 +371,16 @@ static void prvSetupSignalsAndSchedulerPolicy( void )
     iPolicy = SCHED_FIFO;
     iResult = pthread_setschedparam( pthread_self(), iPolicy, &iSchedulerPriority );        */
 
+    int i;
     struct sigaction sigsuspendself, sigresume, sigtick;
 
     memset(pxThreads, 0, sizeof(pxThreads));
+
+    for (i = 0; i < MAX_NUMBER_OF_TASKS; i++ )
+    {
+        pxThreads[i].index = i;
+    }
+    
 
     sigsuspendself.sa_flags = 0;
     sigsuspendself.sa_handler = SuspendSignalHandler;
@@ -382,17 +396,20 @@ static void prvSetupSignalsAndSchedulerPolicy( void )
 
     if ( 0 != sigaction( SIG_SUSPEND, &sigsuspendself, NULL ) )
     {
-        printf( "Problem installing SIG_SUSPEND_SELF\n" );
+        assert( !"Problem installing SIG_SUSPEND_SELF\n" );
     }
     if ( 0 != sigaction( SIG_RESUME, &sigresume, NULL ) )
     {
-        printf( "Problem installing SIG_RESUME\n" );
+        assert( !"Problem installing SIG_RESUME\n" );
     }
     if ( 0 != sigaction( SIG_TICK, &sigtick, NULL ) )
     {
-        printf( "Problem installing SIG_TICK\n" );
+        assert( !"Problem installing SIG_TICK\n" );
     }
+
+#if LINUX_PORT_DEBUG
     printf( "Running as PID: %d\n", getpid() );
+#endif
 
     /*
      *  Also save the first thread as the main thread.
@@ -408,12 +425,23 @@ static void *ThreadStartWrapper( void * pvParams )
 {
     ThreadState_t *State = (ThreadState_t *)pvParams;
 
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    
     pthread_cleanup_push( DeleteThreadCleanupRoutine, State );
 
     pthread_mutex_lock(&xSingleThreadMutex); 
     SuspendThread( pthread_self() );
 
+#if LINUX_PORT_DEBUG
+    printf("[%d] Starting thread\n", State->index);
+#endif
+
     State->pxCode( State->pvParams );
+
+#if LINUX_PORT_DEBUG
+    printf("[%d] Ending thread - SHOULD NEVER SEE THIS\n", State->index);
+#endif
 
     /* make sure we execute DeleteThreadCleanupRoutine */
     pthread_cleanup_pop( 1 );
@@ -468,22 +496,17 @@ portSTACK_TYPE *pxPortInitialiseStack( portSTACK_TYPE *pxTopOfStack, pdTASK_CODE
                         ThreadStartWrapper, 
                         (void *)&pxThreads[lIndexOfLastAddedTask]
                         );
-    if (rc != 0)
-    {
-        /* Thread create failed, signal the failure */
-        pxTopOfStack = 0;
-    }
-    else 
-    {
-        CPU_ZERO(&cpuset);
-        CPU_SET(0, &cpuset);
+    assert(rc == 0);
 
-        rc = pthread_setaffinity_np(pxThreads[lIndexOfLastAddedTask].Thread, 
-                                    sizeof(cpu_set_t), 
-                                    &cpuset);
-	    configASSERT( rc == 0 );
-        pxThreads[lIndexOfLastAddedTask].Valid = 1;
-    }
+    CPU_ZERO(&cpuset);
+    CPU_SET(0, &cpuset);
+
+    rc = pthread_setaffinity_np(pxThreads[lIndexOfLastAddedTask].Thread, 
+                                sizeof(cpu_set_t), 
+                                &cpuset);
+	configASSERT( rc == 0 );
+    pxThreads[lIndexOfLastAddedTask].Valid = 1;
+
 
     /* Wait until the task suspends. */
     pthread_mutex_unlock( &xSingleThreadMutex );
@@ -518,11 +541,13 @@ static void prvSetupTimerInterrupt( void )
     itimer.it_value.tv_sec = Seconds;
     itimer.it_value.tv_usec = MicroSeconds;
 
+#if LINUX_PORT_DEBUG
     printf("Timer Setup:\n");
     printf("  Interval: %ld seconds, %ld useconds\n", 
             itimer.it_interval.tv_sec, itimer.it_interval.tv_usec);
     printf("  Current: %ld seconds, %ld useconds\n", 
             itimer.it_value.tv_sec, itimer.it_value.tv_usec);
+#endif
 
     /* Set-up the timer interrupt. */
     rc = setitimer( TIMER_TYPE, &itimer, &oitimer );
@@ -541,6 +566,11 @@ portBASE_TYPE xPortStartScheduler( void )
     sigset_t xSignalsBlocked;
     pthread_t FirstThread;
     int success;
+
+#if LINUX_PORT_DEBUG
+    printf("\n***** LINUX PORT CONFIGURED FOR DEBUG *****\n");
+#endif    
+
 
     /* Establish the signals to block before they are needed. */
     sigfillset( &xSignalToBlock );
@@ -577,10 +607,23 @@ portBASE_TYPE xPortStartScheduler( void )
         }
     }
 
-    printf( "Cleaning Up, Exiting.\n" );
+#if LINUX_PORT_DEBUG
+    printf("Exiting scheduler.\n");
+    printf("[%d] Canceling xTaskEndScheduler caller thread.\n", hEndSchedulerCallerThreadIndex);
+#endif
+
+    pthread_cancel(hEndSchedulerCallerThread);
+    sleep(1);
+
     /* Cleanup the mutexes */
+#if LINUX_PORT_DEBUG
+    printf( "Freeing OS mutexes.\n" );
+#endif
+
     pthread_mutex_destroy( &xSuspendResumeThreadMutex );
     pthread_mutex_destroy( &xSingleThreadMutex );
+
+    sleep(1);
 
     /* Should not get here! */
     return 0;
@@ -590,19 +633,56 @@ portBASE_TYPE xPortStartScheduler( void )
 void vPortEndScheduler( void )
 {
     int i;
+    int rc;
+    struct sigaction sigtickdeinit;
+
+    xInterruptsEnabled = pdFALSE;
+
+    /* Signal the scheduler to exit its loop. */
+    xSchedulerEnd = pdTRUE;
+
+    /* Ignore next or pending SIG_TICK, it mustn't execute anymore. */
+    sigtickdeinit.sa_flags = 0;
+    sigtickdeinit.sa_handler = SIG_IGN;
+    sigfillset(&sigtickdeinit.sa_mask);
+
+    rc = sigaction(SIG_TICK, &sigtickdeinit, NULL);
+    assert(rc == 0);
+
+    rc = sigaction(SIG_RESUME, &sigtickdeinit, NULL);
+    assert(rc == 0);
+
+    rc = sigaction(SIG_SUSPEND, &sigtickdeinit, NULL);
+    assert(rc == 0);
+    
 
     for (i = 0; i < MAX_NUMBER_OF_TASKS; i++)
     {
         if ( pxThreads[i].Valid )
         {
-            /* Kill all of the threads, they are in the detached state. */
-            pthread_cancel(pxThreads[i].Thread );
-            pxThreads[i].Valid = 0;
+            //pxThreads[i].Valid = 0;
+                
+            /* Don't kill yourself */
+            if (pthread_equal(pxThreads[i].Thread, pthread_self())) 
+            {
+#if LINUX_PORT_DEBUG
+                printf("[%d] Delaying canceling pthread\n", i);
+#endif                
+                hEndSchedulerCallerThread = pxThreads[i].Thread;
+                hEndSchedulerCallerThreadIndex = pxThreads[i].index;
+                continue;
+            }
+            else
+            {
+                /* Kill all of the threads, they are in the detached state. */
+#if LINUX_PORT_DEBUG
+                printf("[%d] canceling pthread\n", i);
+#endif                
+                pthread_cancel(pxThreads[i].Thread );
+                sleep(1);
+            }
         }
     }
-
-    /* Signal the scheduler to exit its loop. */
-    xSchedulerEnd = pdTRUE;
 
     pthread_kill( hMainThread, SIG_RESUME );
 }
